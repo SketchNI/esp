@@ -27,6 +27,14 @@ breaking systemd under WSL2 and [Laravel Sail](https://laravel.com/docs/sail)
 requires too much tinkering for me to be truly happy with it and thus ESP was 
 born.
 
+# Requirements
+
+1. Windows 10 or Windows 11.
+2. WSL2 + Ubuntu.
+3. Docker Desktop (for Windows with WSL Integration enabled.)
+4. PHP 8.2 (at least `php8.2-cli`).
+5. A towel.
+
 # Installation
 
 todo: composerable installation?
