@@ -10,7 +10,8 @@ use function Termwind\style;
 
 class SetupCommand extends Command
 {
-    protected $signature = 'setup';
+    protected $signature = 'setup { --f|force : Forcibly set up ESP, overwriting all previous configuration }
+                                   { --b|bad : Force bad environment. Mainly used for testing. }';
 
     protected $description = 'Sets up ESP';
 
@@ -20,12 +21,14 @@ class SetupCommand extends Command
         style('error')->apply('text-red-500');
         style('success')->apply('text-green-500');
 
-        if (!$this->detectOperatingSystemIsWsl2()) {
+        if (!$this->detectOperatingSystemIsWsl2($this->option('bad'))) {
             render(sprintf(
                 '<span><span class="error">ERROR</span> ESP is designed to run in a WSL 2 environment. Your environment is %s.</span>',
                 PHP_OS
             ));
             return;
+        } else {
+            render('<span><span class="info">INFO</span> Environment is WSL2.</span>');
         }
 
         $__env_home = getenv('HOME');
@@ -37,14 +40,17 @@ class SetupCommand extends Command
         $this->setupNginx($__name, $__data_path);
         $this->setupPhp($__name, $__data_path);
         $this->restartServices();
-        $this->setupEasyRsa($__data_path);
+        $this->setupEasyRsa($__data_path, $this->option('force'));
 
         chdir(posix_getcwd());
     }
 
-    private function detectOperatingSystemIsWsl2(): bool
+    private function detectOperatingSystemIsWsl2(bool $bad): bool
     {
-        return preg_match('/WSL2/i', php_uname('r'));
+        return preg_match(
+            '/WSL2/i',
+            $bad ? '5.15.90.1' : php_uname('r')
+        );
     }
 
     /**
@@ -112,43 +118,52 @@ class SetupCommand extends Command
 
     /**
      * @param  string  $__data_path
+     * @param  bool  $force
      *
      * @return void
      */
-    private function setupEasyRsa(string $__data_path): void
+    private function setupEasyRsa(string $__data_path, bool $force): void
     {
-        if (!File::isDirectory(sprintf("%s/easyrsa", $__data_path))) {
-            render('<span><span class="info">INFO</span> Downloading EasyRSA.</span>');
-            chdir($dir = posix_getcwd());
-            file_put_contents(
-                'EasyRSA-3.1.6.tgz',
-                file_get_contents('https://github.com/OpenVPN/easy-rsa/releases/download/v3.1.6/EasyRSA-3.1.6.tgz')
-            );
-
-            $phar = new PharData('EasyRSA-3.1.6.tgz');
-            $phar->decompress();
-            $phar->extractTo($__data_path.'/');
-            File::move(sprintf("%s/EasyRSA-3.1.6", $__data_path), sprintf("%s/easyrsa", $__data_path));
+        if (File::isDirectory(sprintf("%s/easyrsa", $__data_path)) && $force) {
             File::delete(['EasyRSA-3.1.6.tar', 'EasyRSA-3.1.6.tgz']);
+            File::deleteDirectory($__data_path.'/easyrsa');
+        }
 
-            render('<span><span class="info">INFO</span> Setting up EasyRSA.</span>');
-            chdir($__data_path.'/easyrsa');
-            shell_exec('./easyrsa init-pki');
+        render('<span><span class="info">INFO</span> Downloading EasyRSA.</span>');
+        chdir($dir = posix_getcwd());
+        file_put_contents(
+            'EasyRSA-3.1.6.tgz',
+            file_get_contents('https://github.com/OpenVPN/easy-rsa/releases/download/v3.1.6/EasyRSA-3.1.6.tgz')
+        );
 
-            chdir($dir);
-            $contents = file_get_contents('storage/stubs/pki-vars.stub');
-            File::append($__data_path.'/easyrsa/pki/vars', $contents);
+        shell_exec(sprintf('tar -zxf EasyRSA-3.1.6.tgz -C %s', $__data_path));
+        File::move(sprintf("%s/EasyRSA-3.1.6", $__data_path), sprintf("%s/easyrsa", $__data_path));
+        File::delete(['EasyRSA-3.1.6.tar', 'EasyRSA-3.1.6.tgz']);
 
-            $this->choice(sprintf(
-                '  Before continuing, you can edit the file at %s to generate your CA cert.'.PHP_EOL.
-                '   Sane defaults have been provided and you can safely ignore this step.',
-                $__data_path.'/easyrsa/pki/vars'
-            ), ['Continue']);
+        render('<span><span class="info">INFO</span> Setting up EasyRSA.</span>');
+        chdir($__data_path.'/easyrsa');
+        shell_exec('./easyrsa init-pki');
 
+        chdir($dir);
+        $contents = file_get_contents('storage/stubs/pki-vars.stub');
+        File::append($__data_path.'/easyrsa/pki/vars', $contents);
+
+        $this->newline();
+        $this->info(sprintf(
+            '  Before continuing, you can edit the file at %s to generate your CA cert.'.PHP_EOL.
+            '  Sane defaults have been provided and you can safely ignore this step.',
+            $__data_path.'/easyrsa/pki/vars'
+        ));
+
+        $question = $this->choice('Do you want to continue?', ['Yes', 'No']);
+
+        if ($question === 'No') {
+            render(sprintf('<span><span class="error">ERROR</span> Aborting installation and removing %s/easyrsa.</span>',
+                $__data_path));
+            File::deleteDirectory($__data_path.'/easyrsa');
+        } else {
             chdir($__data_path.'/easyrsa');
             shell_exec('./easyrsa --req-cn="ESP by Sketch" --batch build-ca nopass');
-        } else {
-            render('<span><span class="info">INFO</span> EasyRSA already installed. Skipping.</span>');
         }
     }
 }
