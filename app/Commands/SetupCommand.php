@@ -37,28 +37,7 @@ class SetupCommand extends Command
         $this->setupNginx($__name, $__data_path);
         $this->setupPhp($__name, $__data_path);
         $this->restartServices();
-
-        if (!File::isDirectory(sprintf("%s/easyrsa", $__data_path))) {
-            render('<span><span class="info">INFO</span> Downloading EasyRSA.</span>');
-            chdir(posix_getcwd());
-            file_put_contents(
-                'EasyRSA-3.1.6.tgz',
-                file_get_contents('https://github.com/OpenVPN/easy-rsa/releases/download/v3.1.6/EasyRSA-3.1.6.tgz')
-            );
-
-            $phar = new PharData('EasyRSA-3.1.6.tgz');
-            $phar->decompress();
-            $phar->extractTo($__data_path.'/');
-            File::move(sprintf("%s/EasyRSA-3.1.6", $__data_path), sprintf("%s/easyrsa", $__data_path));
-            File::delete(['EasyRSA-3.1.6.tar', 'EasyRSA-3.1.6.tgz']);
-
-            render('<span><span class="info">INFO</span> Setting up EasyRSA.</span>');
-            chdir($__data_path.'/easyrsa');
-            shell_exec('./easyrsa init-pki');
-            shell_exec('./easyrsa build-ca');
-        } else {
-            render('<span><span class="info">INFO</span> EasyRSA already installed. Skipping.</span>');
-        }
+        $this->setupEasyRsa($__data_path);
 
         chdir(posix_getcwd());
     }
@@ -129,5 +108,47 @@ class SetupCommand extends Command
     {
         render('<span><span class="info">INFO</span> Restarting services.</span>');
         shell_exec('sudo systemctl restart nginx.service php8.2-fpm.service');
+    }
+
+    /**
+     * @param  string  $__data_path
+     *
+     * @return void
+     */
+    private function setupEasyRsa(string $__data_path): void
+    {
+        if (!File::isDirectory(sprintf("%s/easyrsa", $__data_path))) {
+            render('<span><span class="info">INFO</span> Downloading EasyRSA.</span>');
+            chdir($dir = posix_getcwd());
+            file_put_contents(
+                'EasyRSA-3.1.6.tgz',
+                file_get_contents('https://github.com/OpenVPN/easy-rsa/releases/download/v3.1.6/EasyRSA-3.1.6.tgz')
+            );
+
+            $phar = new PharData('EasyRSA-3.1.6.tgz');
+            $phar->decompress();
+            $phar->extractTo($__data_path.'/');
+            File::move(sprintf("%s/EasyRSA-3.1.6", $__data_path), sprintf("%s/easyrsa", $__data_path));
+            File::delete(['EasyRSA-3.1.6.tar', 'EasyRSA-3.1.6.tgz']);
+
+            render('<span><span class="info">INFO</span> Setting up EasyRSA.</span>');
+            chdir($__data_path.'/easyrsa');
+            shell_exec('./easyrsa init-pki');
+
+            chdir($dir);
+            $contents = file_get_contents('storage/stubs/pki-vars.stub');
+            File::append($__data_path.'/easyrsa/pki/vars', $contents);
+
+            $this->choice(sprintf(
+                '  Before continuing, you can edit the file at %s to generate your CA cert.'.PHP_EOL.
+                '   Sane defaults have been provided and you can safely ignore this step.',
+                $__data_path.'/easyrsa/pki/vars'
+            ), ['Continue']);
+
+            chdir($__data_path.'/easyrsa');
+            shell_exec('./easyrsa --req-cn="ESP by Sketch" --batch build-ca nopass');
+        } else {
+            render('<span><span class="info">INFO</span> EasyRSA already installed. Skipping.</span>');
+        }
     }
 }
