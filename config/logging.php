@@ -62,7 +62,7 @@ return [
 
         'daily' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/laravel.log'),
+            'path' => sprintf('%s/.esp/Logs/laravel.log', getenv('HOME')),
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => 14,
         ],

@@ -1,7 +1,0 @@
-set_var EASYRSA_REQ_COUNTRY	    "UK"
-set_var EASYRSA_REQ_PROVINCE	"Northern Ireland"
-set_var EASYRSA_REQ_CITY	    "Belfast"
-set_var EASYRSA_REQ_ORG	        "Sketch Media"
-set_var EASYRSA_REQ_EMAIL	    "some.email@example.com"
-set_var EASYRSA_REQ_OU		    "Environment Setup Program"
-set_var EASYRSA_REQ_CN          "ESP by SketchNI"

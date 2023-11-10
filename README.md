@@ -52,9 +52,9 @@ sudo mv esp /usr/local/bin/esp
 
 `setup` - Installs nginx, php8.2 and EasyRSA.
 
-| Arguments | Description  |
-|-----------|--------------|
-| *None*    | *None*       |
+| Arguments | Description |
+|-----------|-------------|
+| *None*    | *None*      |
 
 | Options           | Description                                                                    |
 |-------------------|--------------------------------------------------------------------------------|
@@ -78,5 +78,9 @@ sudo mv esp /usr/local/bin/esp
 ### Site
 
 `site:create` - Create a new site.
+
+| Arguments      | Description                          |
+|----------------|--------------------------------------|
+| `--only-nginx` | Only generate an nginx configuration |
 
 `site:list` - List all registered sites.

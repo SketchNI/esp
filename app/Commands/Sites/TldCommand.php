@@ -4,9 +4,6 @@ namespace App\Commands\Sites;
 
 use LaravelZero\Framework\Commands\Command;
 
-use function Termwind\render;
-use function Termwind\style;
-
 class TldCommand extends Command
 {
     /**
@@ -28,30 +25,20 @@ class TldCommand extends Command
      */
     public function handle(): void
     {
-        style('info')->apply('text-blue-500');
-        style('error')->apply('text-red-500');
-        style('success')->apply('text-green-500');
+        $esp = sprintf("%s/.esp", getenv('HOME'));
+        $tld_file = sprintf("%s/tld", $esp);
 
         if ($this->argument('new-tld') === null) {
-            $tld = file_get_contents(storage_path('tld'));
-            render(sprintf(
-                '<span><span class="info">INFO</span> Current TLD is <span class="success">.%s</span>.</span>',
-                $tld
-            ));
+            $tld = file_get_contents($tld_file, $esp);
+            $this->info('Current TLD is ".%s"', $tld);
 
             return;
         }
 
-        $tld = file_put_contents(
-            storage_path('tld'),
-            $this->argument('new-tld'),
-            LOCK_EX
-        );
+        $tld = file_put_contents($tld_file, $this->argument('new-tld'), LOCK_EX);
 
         if ($tld) {
-            render(sprintf(
-                '<span><span class="info">INFO</span> TLD has been updated to <span class="success">.%s</span>.</span>',
-                $this->argument('new-tld')));
+            $this->info('TLD has been updated to ".%s"', $tld);
         }
     }
 }
